@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 import sys
 from typing import Any
@@ -30,6 +31,7 @@ def _login_error(exc: LoginFailed) -> dict[str, Any]:
 def _guard(fn):
     """Convert LoginFailed / generic errors to a structured error result."""
 
+    @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         try:
             return fn(*args, **kwargs)
@@ -40,8 +42,6 @@ def _guard(fn):
         except Exception as exc:  # noqa: BLE001 - surface API changes to the caller
             return {"error": "api_error", "detail": f"{type(exc).__name__}: {exc}"}
 
-    wrapper.__name__ = fn.__name__
-    wrapper.__doc__ = fn.__doc__
     return wrapper
 
 

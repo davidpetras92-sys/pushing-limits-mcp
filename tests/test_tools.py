@@ -1,5 +1,7 @@
 """Tool-level tests: the MCP tools return structured errors instead of raising."""
 
+import asyncio
+
 import httpx
 
 import pushinglimits_mcp as srv
@@ -48,3 +50,12 @@ def test_pl_get_week_end_to_end(tmp_path, monkeypatch):
     assert week["week_start"] == "2026-09-21" and week["week_end"] == "2026-09-27"
     assert week["tss_is_sum"] == 60.0 and week["tss_plan_sum"] == 312.0
     assert [w["status"] for w in week["workouts"]] == ["erledigt", "offen"]
+
+
+def test_tool_schemas_expose_real_parameters():
+    """The error wrapper must not hide the tool signature (regression: args/kwargs schema)."""
+    tools = {t.name: t for t in asyncio.run(srv.mcp.list_tools())}
+    assert set(tools) == {"pl_status", "pl_get_pmc", "pl_get_workouts", "pl_get_week", "pl_get_thresholds"}
+    assert tools["pl_status"].inputSchema.get("properties", {}) == {}
+    assert set(tools["pl_get_pmc"].inputSchema["properties"]) == {"start_date", "end_date"}
+    assert set(tools["pl_get_week"].inputSchema["properties"]) == {"date"}
