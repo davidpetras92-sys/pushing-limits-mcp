@@ -7,6 +7,7 @@ name = "pushinglimits-mcp"
 version = "0.1.0"
 description = "MCP server (stdio) for Pushing Limits Club training data"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     # mcp 2.x renamed mcp.server.fastmcp; stay on 1.x like garmin-mcp.

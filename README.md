@@ -6,6 +6,10 @@ das Trainings-Cockpit befüllen kann, so wie mit dem Garmin-MCP.
 
 Spezifikation und Login-Analyse: [SPEC.md](SPEC.md).
 
+Privates Hobbyprojekt ohne Verbindung zu Pushing Limits Club. Der Server liest ausschließlich
+die Daten des eigenen Accounts über die interne API der Web-App, die sich jederzeit ändern kann.
+Nutzung auf eigene Verantwortung.
+
 ## Wie der Login funktioniert
 
 - Zugangsdaten liegen ausschließlich im macOS-Schlüsselbund (Service `pushinglimits-mcp`).
@@ -33,12 +37,14 @@ Spezifikation und Login-Analyse: [SPEC.md](SPEC.md).
    cd ~/mcp/pushinglimits-mcp && uv sync
    ```
 
-3. In `~/Library/Application Support/Claude/claude_desktop_config.json` unter `mcpServers` eintragen:
+3. In `~/Library/Application Support/Claude/claude_desktop_config.json` unter `mcpServers` eintragen.
+   Claude Desktop braucht absolute Pfade, `~` also durch den eigenen Home-Ordner ersetzen
+   (Pfad zu `uv` mit `which uv` prüfen):
 
    ```json
    "pushinglimits": {
-     "command": "/Users/davidpetras/.local/bin/uv",
-     "args": ["--directory", "/Users/davidpetras/mcp/pushinglimits-mcp", "run", "pushinglimits-mcp"]
+     "command": "/Users/DEIN-NAME/.local/bin/uv",
+     "args": ["--directory", "/Users/DEIN-NAME/mcp/pushinglimits-mcp", "run", "pushinglimits-mcp"]
    }
    ```
 
@@ -121,3 +127,7 @@ uv run pytest
 ```
 
 Die Tests nutzen gemockte HTTP-Antworten und keine echten Zugangsdaten.
+
+## Lizenz
+
+MIT, siehe [LICENSE](LICENSE).
