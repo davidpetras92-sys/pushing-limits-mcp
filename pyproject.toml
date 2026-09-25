@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pushinglimits-mcp"
+version = "0.1.0"
+description = "MCP server (stdio) for Pushing Limits Club training data"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # mcp 2.x renamed mcp.server.fastmcp; stay on 1.x like garmin-mcp.
+    "mcp>=1.28.1,<2",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+pushinglimits-mcp = "pushinglimits_mcp:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pushinglimits_mcp"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-v --tb=short"

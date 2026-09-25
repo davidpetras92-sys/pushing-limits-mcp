@@ -1,0 +1,26 @@
+# Sitzungen und Zugangsdaten - niemals ins Repo
+session.json
+*.cookies
+.env
+.env.*
+playwright-profile/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.venv/
+.uv-cache/
+*.log
+
+# Node (falls je gebraucht)
+node_modules/
+
+# System / Editor
+.DS_STORE
+.DS_Store
+.claude.md
+.mcp.json
