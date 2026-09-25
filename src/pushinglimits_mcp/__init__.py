@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 from typing import Any
 
@@ -103,6 +104,8 @@ def pl_get_thresholds() -> dict:
 
 
 def main() -> None:
+    # httpx logs every request at INFO; keep the Claude Desktop log quiet.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
         mcp.run(transport="stdio")
     except KeyboardInterrupt:

@@ -61,6 +61,13 @@ def test_map_workout_compact_without_description():
     assert row["tss_is"] == 98.2 and row["tss_plan"] == 100.0
     assert row["hr_avg_is"] == 136
     assert row["planned"] is True
+    assert row["distance_is"] == 30000
+
+
+def test_map_workout_distance_rounded_to_two_decimals():
+    row = T.map_workout({"distance": 44.6789, "distanceShould": 0.003, "localDate": "2026-09-23"})
+    assert row["distance_is"] == 44.68
+    assert row["distance_plan"] == 0.0
 
 
 def test_map_workouts_sorted_by_date_and_order():

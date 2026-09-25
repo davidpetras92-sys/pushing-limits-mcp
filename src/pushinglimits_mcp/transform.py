@@ -60,6 +60,15 @@ def r1(v: Any) -> float | None:
         return None
 
 
+def r2(v: Any) -> float | None:
+    if v is None:
+        return None
+    try:
+        return round(float(v), 2)
+    except (TypeError, ValueError):
+        return None
+
+
 def _int_or_none(v: Any) -> int | None:
     if v is None:
         return None
@@ -127,8 +136,8 @@ def map_workout(w: dict) -> dict:
         "planned": bool(w.get("belongsToActivatedPlan")),
         "duration_min_is": _minutes(w.get("durationIs")),
         "duration_min_plan": _minutes(w.get("durationShould")),
-        "distance_is": w.get("distance"),
-        "distance_plan": w.get("distanceShould"),
+        "distance_is": r2(w.get("distance")),
+        "distance_plan": r2(w.get("distanceShould")),
         "tss_is": r1(w.get("pss")),
         "tss_plan": r1(w.get("loadEstimate")),
         "hr_avg_is": _int_or_none(w.get("heartRateAvg")),
