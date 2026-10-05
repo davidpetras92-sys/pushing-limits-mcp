@@ -78,6 +78,12 @@ def _int_or_none(v: Any) -> int | None:
         return None
 
 
+def _positive_int(v: Any) -> int | None:
+    """Pushing Limits stores "no value" as 0; report that as None, not as a real zero."""
+    n = _int_or_none(v)
+    return n if n and n > 0 else None
+
+
 def _minutes(seconds: Any) -> float | None:
     if seconds in (None, 0, "0"):
         return None if seconds is None else 0.0
@@ -127,7 +133,36 @@ def map_pmc(payload: Any) -> list[dict]:
     return out
 
 
-def map_workout(w: dict) -> dict:
+def substrate_by_workout(summaries: Any) -> dict[str, dict]:
+    """Carbs/fat in grams per workout id from /workout/analysis/summary/small.
+
+    Pushing Limits only stores total_calories plus fatPercentage/choPercentage per
+    recorded session; the web app turns them into grams with 9 kcal/g fat and
+    4 kcal/g carbohydrate. Same formula here, summed over all sessions of a workout.
+    """
+    acc: dict[str, dict] = {}
+    for s in summaries or []:
+        if not isinstance(s, dict):
+            continue
+        w = s.get("workout")
+        wid = w.get("_id") if isinstance(w, dict) else w
+        kcal, fat_pct, cho_pct = s.get("total_calories"), s.get("fatPercentage"), s.get("choPercentage")
+        if not wid or None in (kcal, fat_pct, cho_pct):
+            continue
+        try:
+            kcal, fat_pct, cho_pct = float(kcal), float(fat_pct), float(cho_pct)
+        except (TypeError, ValueError):
+            continue
+        if kcal <= 0 or fat_pct + cho_pct <= 0:
+            continue
+        a = acc.setdefault(str(wid), {"carbs_g": 0.0, "fat_g": 0.0})
+        a["carbs_g"] += cho_pct / 100 * kcal / 4
+        a["fat_g"] += fat_pct / 100 * kcal / 9
+    return {wid: {k: int(round(v)) for k, v in a.items()} for wid, a in acc.items()}
+
+
+def map_workout(w: dict, substrate: dict | None = None) -> dict:
+    substrate = substrate or {}
     return {
         "date": _local_date(w.get("localDate") or w.get("date")),
         "order": w.get("orderOfDay"),
@@ -143,14 +178,27 @@ def map_workout(w: dict) -> dict:
         "hr_avg_is": _int_or_none(w.get("heartRateAvg")),
         "hr_avg_plan": _int_or_none(w.get("heartRateAvgShould")),
         "power_avg_is": _int_or_none(w.get("powerInWatts")),
+        # Energy in kcal, substrates in grams. Pushing Limits has no values for
+        # planned workouts, so the *_plan fields stay None.
+        "kcal_is": _positive_int(w.get("calories")),
+        "kcal_plan": None,
+        "carbs_g_is": substrate.get("carbs_g"),
+        "carbs_g_plan": None,
+        "fat_g_is": substrate.get("fat_g"),
+        "fat_g_plan": None,
     }
 
 
-def map_workouts(payload: Any) -> list[dict]:
+def map_workouts(payload: Any, substrates: dict[str, dict] | None = None) -> list[dict]:
     items = payload
     if isinstance(payload, dict):
         items = payload.get("workouts") or payload.get("data") or []
-    rows = [map_workout(w) for w in items or [] if isinstance(w, dict)]
+    substrates = substrates or {}
+    rows = [
+        map_workout(w, substrates.get(str(w.get("_id"))))
+        for w in items or []
+        if isinstance(w, dict)
+    ]
     rows.sort(key=lambda r: (r["date"] or "", r["order"] if r["order"] is not None else 0))
     return rows
 

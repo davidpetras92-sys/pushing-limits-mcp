@@ -111,3 +111,38 @@ def test_map_thresholds():
         "ftp": 280, "threshold_run": 240, "threshold_swim": 95, "weight": 75.5,
         "max_hr": 185, "resting_hr": 48, "updated_at": "2026-09-01T10:00:00Z",
     }
+
+
+def test_substrate_grams_match_app_formula():
+    # 2026-10-04 "LIT - 2h00": 2063 kcal, 73 % fat, 27 % carbs -> app shows 167 g fat, 139 g carbs
+    subs = T.substrate_by_workout([
+        {"workout": {"_id": "w1"}, "total_calories": 2063, "fatPercentage": 73, "choPercentage": 27},
+    ])
+    assert subs == {"w1": {"carbs_g": 139, "fat_g": 167}}
+
+
+def test_substrate_sums_sessions_and_skips_missing():
+    subs = T.substrate_by_workout([
+        {"workout": "w1", "total_calories": 400, "fatPercentage": 50, "choPercentage": 50},
+        {"workout": {"_id": "w1"}, "total_calories": 400, "fatPercentage": 50, "choPercentage": 50},
+        {"workout": {"_id": "w2"}, "total_calories": 0, "fatPercentage": 70, "choPercentage": 30},
+        {"workout": {"_id": "w3"}, "total_calories": 500, "fatPercentage": None, "choPercentage": None},
+        None,
+    ])
+    assert subs == {"w1": {"carbs_g": 100, "fat_g": 44}}
+
+
+def test_map_workout_energy_fields_are_null_not_zero():
+    planned = T.map_workout({"_id": "p", "localDate": "2026-10-06", "calories": 0})
+    for k in ("kcal_is", "kcal_plan", "carbs_g_is", "carbs_g_plan", "fat_g_is", "fat_g_plan"):
+        assert k in planned and planned[k] is None
+    done = T.map_workout({"_id": "d", "calories": 2063}, {"carbs_g": 139, "fat_g": 167})
+    assert (done["kcal_is"], done["carbs_g_is"], done["fat_g_is"]) == (2063, 139, 167)
+
+
+def test_map_workouts_attaches_substrates_by_id():
+    rows = T.map_workouts(
+        [{"_id": "a", "localDate": "2026-10-04", "calories": 2063}, {"_id": "b", "localDate": "2026-10-04"}],
+        {"a": {"carbs_g": 139, "fat_g": 167}},
+    )
+    assert [(r["carbs_g_is"], r["fat_g_is"]) for r in rows] == [(139, 167), (None, None)]

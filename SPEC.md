@@ -8,7 +8,8 @@ Lokaler MCP-Server (stdio) `pushinglimits`, der Daten aus der JSON-API von Pushi
 |---|---|---|
 | Login-Check / Profil | `/api/user/me` | 200 = eingeloggt |
 | Performance Management | `/api/workout/analysis/pmc?from=<unix Sek.>&until=<unix Sek.>` | `{series:[{day, ctl, atl, tsb, load}]}`, `load` = TSS des Tages |
-| Einheiten Plan und Ist | `/api/workout/from/<ms>/until/<ms>` | Liste mit `name, sport, localDate, orderOfDay, durationIs, durationShould` (Sek.), `distance, distanceShould, pss` (Ist-TSS), `loadEstimate` (Plan-TSS), `heartRateAvg, heartRateAvgShould, powerInWatts, belongsToActivatedPlan, is_alternative, description` |
+| Einheiten Plan und Ist | `/api/workout/from/<ms>/until/<ms>` | Liste mit `name, sport, localDate, orderOfDay, durationIs, durationShould` (Sek.), `distance, distanceShould, pss` (Ist-TSS), `loadEstimate` (Plan-TSS), `heartRateAvg, heartRateAvgShould, powerInWatts, calories` (kcal, 0 = kein Wert), `belongsToActivatedPlan, is_alternative, description` |
+| Substrate je Aufzeichnung | `/workout/analysis/summary/small/from/<unix Sek.>/till/<unix Sek.>` | Liste mit `workout._id, total_calories, fatPercentage, choPercentage` (geprüft 05.10.2026). Gramm rechnet erst die Web-App (Fett /9, KH /4). Nur erledigte Einheiten. |
 | Nächste Einheiten | `/api/workout/nextworkouts/<ms>/limit/<n>` | Liste |
 | Schwellen | `/api/user/threshold` | `ftp, threshold_run, threshold_swim, weight, maxHr, restingHr, createdAt` |
 

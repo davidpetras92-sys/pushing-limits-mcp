@@ -70,18 +70,32 @@ Eine Zeile pro Tag, eine Nachkommastelle. `tss` ist die Tageslast (`load` der AP
  {"date": "2026-09-25", "ctl": 98.4, "atl": 116.1, "tsb": -17.7, "tss": 0.0}]
 ```
 
-### `pl_get_workouts(start_date, end_date)`
+### `pl_get_workouts(start_date, end_date, include_energy=false)`
 
 Kompakte Liste ohne `description`. Dauer in Minuten, Distanz in km (wie von der API geliefert),
 `tss_is` = `pss`, `tss_plan` = `loadEstimate`, `planned` = `belongsToActivatedPlan`.
 
 ```json
-[{"date": "2026-09-22", "order": 1, "name": "Aktivierungslauf", "sport": "Laufen", "planned": true,
-  "duration_min_is": 37.7, "duration_min_plan": 40.0, "distance_is": 5.6, "distance_plan": 0,
-  "tss_is": 28.0, "tss_plan": 29.0, "hr_avg_is": 145, "hr_avg_plan": 0, "power_avg_is": 345}]
+[{"date": "2026-10-04", "order": 1, "name": "LIT - 2h00", "sport": "Radfahren", "planned": false,
+  "duration_min_is": 225.1, "duration_min_plan": 120.0, "distance_is": 94.4, "distance_plan": 0.0,
+  "tss_is": 192.0, "tss_plan": 85.0, "hr_avg_is": 132, "hr_avg_plan": 134, "power_avg_is": 159,
+  "kcal_is": 2063, "kcal_plan": null, "carbs_g_is": 139, "carbs_g_plan": null,
+  "fat_g_is": 167, "fat_g_plan": null}]
 ```
 
-### `pl_get_week(date)`
+Beispiel oben mit `include_energy=true`. Energie und Substrate (`pl_get_workouts` und `pl_get_week`):
+
+- `kcal_is` (kcal) = `calories` der API, immer dabei. `null`, wenn die Einheit keinen Wert hat.
+- `carbs_g_is`, `fat_g_is` (Gramm) nur mit `include_energy=true`. Pushing Limits liefert dafür
+  `total_calories`, `fatPercentage` und `choPercentage` je Aufzeichnung
+  (`/workout/analysis/summary/small/...`, ein Zusatzabruf pro Zeitraum). Die Gramm rechnet der
+  Server wie die Web-App: Fett = kcal × Anteil / 9, Kohlenhydrate = kcal × Anteil / 4, gerundet.
+  Nur für Zeiträume bis 14 Tage, sonst `bad_request`. Scheitert der Zusatzabruf, bleiben die
+  Felder `null`, der Rest kommt normal.
+- `kcal_plan`, `carbs_g_plan`, `fat_g_plan` sind immer `null`: Pushing Limits hat für geplante
+  Einheiten keine Energie- oder Substratwerte.
+
+### `pl_get_week(date, include_energy=false)`
 
 Montag bis Sonntag der Woche, mit Summen und Status je Einheit:
 `erledigt` (Ist-Dauer vorhanden), `ausgelassen` (Tag vorbei, keine Ist-Dauer), sonst `offen`.

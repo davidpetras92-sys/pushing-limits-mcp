@@ -13,6 +13,10 @@ from . import transform as T
 from .api import LoginFailed, PLClient
 
 mcp = FastMCP("pushinglimits")
+log = logging.getLogger(__name__)
+
+# include_energy costs one extra request whose payload grows with the range.
+ENERGY_MAX_DAYS = 14
 
 _client: PLClient | None = None
 
@@ -70,28 +74,53 @@ def pl_get_pmc(start_date: str, end_date: str) -> list[dict]:
     return [r for r in rows if r["date"] is None or s <= r["date"] <= e]
 
 
-def _fetch_workouts(start, end) -> list[dict]:
+def _fetch_substrates(start, end) -> dict[str, dict]:
+    """Carbs/fat per workout id; {} if the extra request fails (fields then stay None)."""
+    frm, until = T.range_s(start, end)
+    try:
+        return T.substrate_by_workout(client().get(f"/workout/analysis/summary/small/from/{frm}/till/{until}"))
+    except Exception as exc:  # noqa: BLE001 - optional data must not fail the whole call
+        log.warning("substrate request failed: %s", type(exc).__name__)
+        return {}
+
+
+def _check_energy_range(start, end, include_energy: bool) -> None:
+    if include_energy and (end - start).days + 1 > ENERGY_MAX_DAYS:
+        raise ValueError(f"include_energy geht nur für Zeiträume bis {ENERGY_MAX_DAYS} Tage")
+
+
+def _fetch_workouts(start, end, include_energy: bool = False) -> list[dict]:
     frm, until = T.range_ms(start, end)
     data = client().get(f"/workout/from/{frm}/until/{until}")
-    rows = T.map_workouts(data)
+    substrates = _fetch_substrates(start, end) if include_energy else None
+    rows = T.map_workouts(data, substrates)
     s, e = start.isoformat(), end.isoformat()
     return [r for r in rows if r["date"] is None or s <= r["date"] <= e]
 
 
 @mcp.tool()
 @_guard
-def pl_get_workouts(start_date: str, end_date: str) -> list[dict]:
-    """Planned and completed workouts between two dates (YYYY-MM-DD, inclusive, Europe/Berlin)."""
-    return _fetch_workouts(T.parse_date(start_date), T.parse_date(end_date))
+def pl_get_workouts(start_date: str, end_date: str, include_energy: bool = False) -> list[dict]:
+    """Planned and completed workouts between two dates (YYYY-MM-DD, inclusive, Europe/Berlin).
+
+    kcal_is is always included. include_energy=true adds carbs_g_is/fat_g_is (one extra
+    request, ranges up to 14 days). *_plan energy fields are null: Pushing Limits has none.
+    """
+    start, end = T.parse_date(start_date), T.parse_date(end_date)
+    _check_energy_range(start, end, include_energy)
+    return _fetch_workouts(start, end, include_energy)
 
 
 @mcp.tool()
 @_guard
-def pl_get_week(date: str) -> dict:
-    """Monday-Sunday week containing the date: TSS sums plus workouts with status erledigt/offen/ausgelassen."""
+def pl_get_week(date: str, include_energy: bool = False) -> dict:
+    """Monday-Sunday week containing the date: TSS sums plus workouts with status erledigt/offen/ausgelassen.
+
+    include_energy=true adds carbs_g_is/fat_g_is per workout (one extra request).
+    """
     d = T.parse_date(date)
     monday, sunday = T.week_bounds(d)
-    rows = _fetch_workouts(monday, sunday)
+    rows = _fetch_workouts(monday, sunday, include_energy)
     week = T.build_week(rows, T.today_local())
     return {"week_start": monday.isoformat(), "week_end": sunday.isoformat(), **week}
 
