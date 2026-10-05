@@ -15,7 +15,8 @@ from .api import LoginFailed, PLClient
 mcp = FastMCP("pushinglimits")
 log = logging.getLogger(__name__)
 
-# include_energy costs one extra request whose payload grows with the range.
+# Substrates cost one extra request whose payload grows with the range, so they
+# are only fetched for short ranges (automatically, unless include_energy=false).
 ENERGY_MAX_DAYS = 14
 
 _client: PLClient | None = None
@@ -84,9 +85,12 @@ def _fetch_substrates(start, end) -> dict[str, dict]:
         return {}
 
 
-def _check_energy_range(start, end, include_energy: bool) -> None:
-    if include_energy and (end - start).days + 1 > ENERGY_MAX_DAYS:
+def _want_energy(start, end, include_energy: bool | None) -> bool:
+    """None = automatic (ranges up to ENERGY_MAX_DAYS), True = required, False = off."""
+    short = (end - start).days + 1 <= ENERGY_MAX_DAYS
+    if include_energy and not short:
         raise ValueError(f"include_energy geht nur für Zeiträume bis {ENERGY_MAX_DAYS} Tage")
+    return short if include_energy is None else include_energy
 
 
 def _fetch_workouts(start, end, include_energy: bool = False) -> list[dict]:
@@ -100,27 +104,28 @@ def _fetch_workouts(start, end, include_energy: bool = False) -> list[dict]:
 
 @mcp.tool()
 @_guard
-def pl_get_workouts(start_date: str, end_date: str, include_energy: bool = False) -> list[dict]:
+def pl_get_workouts(start_date: str, end_date: str, include_energy: bool | None = None) -> list[dict]:
     """Planned and completed workouts between two dates (YYYY-MM-DD, inclusive, Europe/Berlin).
 
-    kcal_is is always included. include_energy=true adds carbs_g_is/fat_g_is (one extra
-    request, ranges up to 14 days). *_plan energy fields are null: Pushing Limits has none.
+    kcal_is is always included. carbs_g_is/fat_g_is come automatically for ranges up to
+    14 days (one extra request); longer ranges leave them null. include_energy=false skips
+    them, true requires them (error above 14 days). *_plan energy fields are null:
+    Pushing Limits has none.
     """
     start, end = T.parse_date(start_date), T.parse_date(end_date)
-    _check_energy_range(start, end, include_energy)
-    return _fetch_workouts(start, end, include_energy)
+    return _fetch_workouts(start, end, _want_energy(start, end, include_energy))
 
 
 @mcp.tool()
 @_guard
-def pl_get_week(date: str, include_energy: bool = False) -> dict:
+def pl_get_week(date: str, include_energy: bool | None = None) -> dict:
     """Monday-Sunday week containing the date: TSS sums plus workouts with status erledigt/offen/ausgelassen.
 
-    include_energy=true adds carbs_g_is/fat_g_is per workout (one extra request).
+    Includes carbs_g_is/fat_g_is per workout (one extra request); include_energy=false skips them.
     """
     d = T.parse_date(date)
     monday, sunday = T.week_bounds(d)
-    rows = _fetch_workouts(monday, sunday, include_energy)
+    rows = _fetch_workouts(monday, sunday, _want_energy(monday, sunday, include_energy))
     week = T.build_week(rows, T.today_local())
     return {"week_start": monday.isoformat(), "week_end": sunday.isoformat(), **week}
 

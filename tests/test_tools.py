@@ -85,10 +85,10 @@ def _energy_client(tmp_path, summary_handler):
                     transport=httpx.MockTransport(handler)), calls
 
 
-def test_workouts_without_energy_make_no_extra_request(tmp_path, monkeypatch):
+def test_workouts_with_energy_off_make_no_extra_request(tmp_path, monkeypatch):
     c, calls = _energy_client(tmp_path, lambda r: httpx.Response(500))
     monkeypatch.setattr(srv, "_client", c)
-    rows = srv.pl_get_workouts("2026-10-04", "2026-10-06")
+    rows = srv.pl_get_workouts("2026-10-04", "2026-10-06", include_energy=False)
     assert not any("/analysis/summary" in p for p in calls)
     assert rows[0]["kcal_is"] == 2063 and rows[0]["carbs_g_is"] is None and rows[0]["fat_g_is"] is None
     assert rows[1]["kcal_is"] is None and rows[1]["kcal_plan"] is None
@@ -103,9 +103,10 @@ def test_workouts_with_energy(tmp_path, monkeypatch):
 
     c, _ = _energy_client(tmp_path, summary)
     monkeypatch.setattr(srv, "_client", c)
-    rows = srv.pl_get_workouts("2026-10-04", "2026-10-06", include_energy=True)
-    assert (rows[0]["kcal_is"], rows[0]["carbs_g_is"], rows[0]["fat_g_is"]) == (2063, 139, 167)
-    assert rows[1]["carbs_g_is"] is None and rows[1]["carbs_g_plan"] is None
+    for kwargs in ({}, {"include_energy": True}):  # automatic for short ranges, or explicit
+        rows = srv.pl_get_workouts("2026-10-04", "2026-10-06", **kwargs)
+        assert (rows[0]["kcal_is"], rows[0]["carbs_g_is"], rows[0]["fat_g_is"]) == (2063, 139, 167)
+        assert rows[1]["carbs_g_is"] is None and rows[1]["carbs_g_plan"] is None
 
 
 def test_failed_energy_request_keeps_workouts(tmp_path, monkeypatch):
@@ -124,4 +125,12 @@ def test_energy_limited_to_14_days(tmp_path, monkeypatch):
     assert out["error"] == "bad_request"
     assert calls == []
     assert isinstance(srv.pl_get_workouts("2026-10-01", "2026-10-14", include_energy=True), list)
-    assert isinstance(srv.pl_get_workouts("2025-10-01", "2026-10-15"), list)
+    assert sum("/analysis/summary" in p for p in calls) == 1
+
+
+def test_long_range_skips_energy_without_error(tmp_path, monkeypatch):
+    c, calls = _energy_client(tmp_path, lambda r: httpx.Response(200, json=[]))
+    monkeypatch.setattr(srv, "_client", c)
+    rows = srv.pl_get_workouts("2025-10-01", "2026-10-15")
+    assert isinstance(rows, list) and rows[0]["kcal_is"] == 2063 and rows[0]["carbs_g_is"] is None
+    assert not any("/analysis/summary" in p for p in calls)

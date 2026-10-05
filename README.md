@@ -70,7 +70,7 @@ Eine Zeile pro Tag, eine Nachkommastelle. `tss` ist die Tageslast (`load` der AP
  {"date": "2026-09-25", "ctl": 98.4, "atl": 116.1, "tsb": -17.7, "tss": 0.0}]
 ```
 
-### `pl_get_workouts(start_date, end_date, include_energy=false)`
+### `pl_get_workouts(start_date, end_date, include_energy=null)`
 
 Kompakte Liste ohne `description`. Dauer in Minuten, Distanz in km (wie von der API geliefert),
 `tss_is` = `pss`, `tss_plan` = `loadEstimate`, `planned` = `belongsToActivatedPlan`.
@@ -83,19 +83,21 @@ Kompakte Liste ohne `description`. Dauer in Minuten, Distanz in km (wie von der 
   "fat_g_is": 167, "fat_g_plan": null}]
 ```
 
-Beispiel oben mit `include_energy=true`. Energie und Substrate (`pl_get_workouts` und `pl_get_week`):
+Energie und Substrate (`pl_get_workouts` und `pl_get_week`):
 
 - `kcal_is` (kcal) = `calories` der API, immer dabei. `null`, wenn die Einheit keinen Wert hat.
-- `carbs_g_is`, `fat_g_is` (Gramm) nur mit `include_energy=true`. Pushing Limits liefert dafür
+- `carbs_g_is`, `fat_g_is` (Gramm) automatisch bei Zeiträumen bis 14 Tage (also auch in
+  `pl_get_week`), bei längeren Zeiträumen `null`. `include_energy=false` schaltet sie ab,
+  `include_energy=true` erzwingt sie (über 14 Tage dann `bad_request`). Pushing Limits liefert dafür
   `total_calories`, `fatPercentage` und `choPercentage` je Aufzeichnung
   (`/workout/analysis/summary/small/...`, ein Zusatzabruf pro Zeitraum). Die Gramm rechnet der
   Server wie die Web-App: Fett = kcal × Anteil / 9, Kohlenhydrate = kcal × Anteil / 4, gerundet.
-  Nur für Zeiträume bis 14 Tage, sonst `bad_request`. Scheitert der Zusatzabruf, bleiben die
+  Scheitert der Zusatzabruf, bleiben die
   Felder `null`, der Rest kommt normal.
 - `kcal_plan`, `carbs_g_plan`, `fat_g_plan` sind immer `null`: Pushing Limits hat für geplante
   Einheiten keine Energie- oder Substratwerte.
 
-### `pl_get_week(date, include_energy=false)`
+### `pl_get_week(date, include_energy=null)`
 
 Montag bis Sonntag der Woche, mit Summen und Status je Einheit:
 `erledigt` (Ist-Dauer vorhanden), `ausgelassen` (Tag vorbei, keine Ist-Dauer), sonst `offen`.
